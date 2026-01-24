@@ -88,7 +88,8 @@ func (a *API) deprecatedImageHandler(w http.ResponseWriter, r *http.Request) *ha
 	// Set grayscale to true as this is the deprecated /g/ endpoint
 	p.Grayscale = true
 
-	return a.validateAndRedirect(w, r, p, image)
+	// Deprecated endpoint - don't cache since it may be random
+	return a.validateAndRedirect(w, r, p, image, false)
 }
 
 // deprecatedParams is a handler to handle deprecated query params for regular routes
@@ -110,7 +111,8 @@ func (a *API) deprecatedParams(next http.Handler) http.Handler {
 				return
 			}
 
-			handlerErr = a.validateAndRedirect(w, r, p, image)
+			// Deprecated endpoint - don't change caching behavior
+			handlerErr = a.validateAndRedirect(w, r, p, image, false)
 			if handlerErr != nil {
 				http.Error(w, handlerErr.Message, handlerErr.Code)
 			}

@@ -36,8 +36,8 @@ func (a *API) imageRedirectHandler(w http.ResponseWriter, r *http.Request) *hand
 		return handlerErr
 	}
 
-	// Validate the params and redirect to the image service
-	return a.validateAndRedirect(w, r, p, image)
+	// Validate the params and redirect to the image service (cacheable since ID is deterministic)
+	return a.validateAndRedirect(w, r, p, image, true)
 }
 
 func (a *API) randomImageRedirectHandler(w http.ResponseWriter, r *http.Request) *handler.Error {
@@ -54,8 +54,8 @@ func (a *API) randomImageRedirectHandler(w http.ResponseWriter, r *http.Request)
 		return handler.InternalServerError()
 	}
 
-	// Validate the params and redirect to the image service
-	return a.validateAndRedirect(w, r, p, image)
+	// Validate the params and redirect to the image service (not cacheable since it's random)
+	return a.validateAndRedirect(w, r, p, image, false)
 }
 
 func (a *API) seedImageRedirectHandler(w http.ResponseWriter, r *http.Request) *handler.Error {
@@ -74,8 +74,8 @@ func (a *API) seedImageRedirectHandler(w http.ResponseWriter, r *http.Request) *
 		return handlerErr
 	}
 
-	// Validate the params and redirect to the image service
-	return a.validateAndRedirect(w, r, p, image)
+	// Validate the params and redirect to the image service (cacheable since seed is deterministic)
+	return a.validateAndRedirect(w, r, p, image, true)
 }
 
 func (a *API) getImage(r *http.Request, imageID string) (*database.Image, *handler.Error) {
@@ -106,14 +106,19 @@ func (a *API) getImageFromSeed(r *http.Request, imageSeed string) (*database.Ima
 	return image, nil
 }
 
-func (a *API) validateAndRedirect(w http.ResponseWriter, r *http.Request, p *params.Params, image *database.Image) *handler.Error {
+func (a *API) validateAndRedirect(w http.ResponseWriter, r *http.Request, p *params.Params, image *database.Image, cacheable bool) *handler.Error {
 	if err := validateImageParams(p); err != nil {
 		return handler.BadRequest(err.Error())
 	}
 
 	width, height := getImageDimensions(p, image)
 
-	w.Header().Set("Cache-Control", "private, no-cache, no-store, must-revalidate")
+	if cacheable {
+		// Cache for 1 day for deterministic endpoints (id and seed)
+		w.Header().Set("Cache-Control", "public, max-age=86400, stale-while-revalidate=60, stale-if-error=43200")
+	} else {
+		w.Header().Set("Cache-Control", "private, no-cache, no-store, must-revalidate")
+	}
 	w.Header()["Content-Type"] = nil
 
 	path := fmt.Sprintf("/id/%s/%d/%d%s", image.ID, width, height, p.Extension)

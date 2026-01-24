@@ -305,115 +305,118 @@ func TestAPI(t *testing.T) {
 		}
 	}
 
+	noCacheHeader := "private, no-cache, no-store, must-revalidate"
+	cacheableHeader := "public, max-age=86400, stale-while-revalidate=60, stale-if-error=43200"
+
 	redirectTests := []struct {
-		Name            string
-		URL             string
-		ExpectedURL     string
-		TestCacheHeader bool
-		LocalRedirect   bool
+		Name                string
+		URL                 string
+		ExpectedURL         string
+		ExpectedCacheHeader string
+		LocalRedirect       bool
 	}{
-		// /id/:id/:size to <imageServiceURL>/id/:id/:width/:height
-		{"/id/:id/:size", "/id/1/200", "/id/1/200/200.jpg", true, false},
-		{"/id/:id/:size.jpg", "/id/1/200.jpg", "/id/1/200/200.jpg", true, false},
-		{"/id/:id/:size.webp", "/id/1/200.webp", "/id/1/200/200.webp", true, false},
-		{"/id/:id/:size?blur", "/id/1/200?blur", "/id/1/200/200.jpg?blur=5", true, false},
-		{"/id/:id/:size?blur", "/id/1/200?blur=10", "/id/1/200/200.jpg?blur=10", true, false},
-		{"/id/:id/:size?grayscale", "/id/1/200?grayscale", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/id/:id/:size?blur&grayscale", "/id/1/200?blur&grayscale", "/id/1/200/200.jpg?blur=5&grayscale", true, false},
+		// /id/:id/:size to <imageServiceURL>/id/:id/:width/:height (cacheable - deterministic)
+		{"/id/:id/:size", "/id/1/200", "/id/1/200/200.jpg", cacheableHeader, false},
+		{"/id/:id/:size.jpg", "/id/1/200.jpg", "/id/1/200/200.jpg", cacheableHeader, false},
+		{"/id/:id/:size.webp", "/id/1/200.webp", "/id/1/200/200.webp", cacheableHeader, false},
+		{"/id/:id/:size?blur", "/id/1/200?blur", "/id/1/200/200.jpg?blur=5", cacheableHeader, false},
+		{"/id/:id/:size?blur", "/id/1/200?blur=10", "/id/1/200/200.jpg?blur=10", cacheableHeader, false},
+		{"/id/:id/:size?grayscale", "/id/1/200?grayscale", "/id/1/200/200.jpg?grayscale", cacheableHeader, false},
+		{"/id/:id/:size?blur&grayscale", "/id/1/200?blur&grayscale", "/id/1/200/200.jpg?blur=5&grayscale", cacheableHeader, false},
 
-		// General
-		{"/:size", "/200", "/id/1/200/200.jpg", true, false},
-		{"/:width/:height", "/200/300", "/id/1/200/300.jpg", true, false},
-		{"/:size.jpg", "/200.jpg", "/id/1/200/200.jpg", true, false},
-		{"/:width/:height.jpg", "/200/300.jpg", "/id/1/200/300.jpg", true, false},
-		{"/:size.webp", "/200.webp", "/id/1/200/200.webp", true, false},
-		{"/:width/:height.webp", "/200/300.webp", "/id/1/200/300.webp", true, false},
-		{"/:size?grayscale", "/200?grayscale", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/:width/:height?grayscale", "/200/300?grayscale", "/id/1/200/300.jpg?grayscale", true, false},
-		// JPG
-		{"/id/:id/:width/:height", "/id/1/200/120", "/id/1/200/120.jpg", true, false},
-		{"/id/:id/:width/:height.jpg", "/id/1/200/120.jpg", "/id/1/200/120.jpg", true, false},
-		{"/id/:id/:width/:height?blur", "/id/1/200/200?blur", "/id/1/200/200.jpg?blur=5", true, false},
-		{"/id/:id/:width/:height.jpg?blur", "/id/1/200/200.jpg?blur", "/id/1/200/200.jpg?blur=5", true, false},
-		{"/id/:id/:width/:height?grayscale", "/id/1/200/200?grayscale", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/id/:id/:width/:height.jpg?grayscale", "/id/1/200/200.jpg?grayscale", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/id/:id/:width/:height?blur&grayscale", "/id/1/200/200?blur&grayscale", "/id/1/200/200.jpg?blur=5&grayscale", true, false},
-		{"/id/:id/:width/:height.jpg?blur&grayscale", "/id/1/200/200.jpg?blur&grayscale", "/id/1/200/200.jpg?blur=5&grayscale", true, false},
-		{"width/height larger then max allowed but same size as image", "/id/1/300/400", "/id/1/300/400.jpg", true, false},
-		{"width/height larger then max allowed but same size as image", "/id/1/300/400.jpg", "/id/1/300/400.jpg", true, false},
-		{"width/height of 0 returns original image width", "/id/1/0/0", "/id/1/300/400.jpg", true, false},
-		{"width/height of 0 returns original image width", "/id/1/0/0.jpg", "/id/1/300/400.jpg", true, false},
-		// WebP
-		{"/id/:id/:width/:height.webp", "/id/1/200/120.webp", "/id/1/200/120.webp", true, false},
-		{"/id/:id/:width/:height.webp?blur", "/id/1/200/200.webp?blur", "/id/1/200/200.webp?blur=5", true, false},
-		{"/id/:id/:width/:height.webp?grayscale", "/id/1/200/200.webp?grayscale", "/id/1/200/200.webp?grayscale", true, false},
-		{"/id/:id/:width/:height.webp?blur&grayscale", "/id/1/200/200.webp?blur&grayscale", "/id/1/200/200.webp?blur=5&grayscale", true, false},
-		{"width/height larger then max allowed but same size as image", "/id/1/300/400.webp", "/id/1/300/400.webp", true, false},
-		{"width/height of 0 returns original image width", "/id/1/0/0.webp", "/id/1/300/400.webp", true, false},
+		// General (random - not cacheable)
+		{"/:size", "/200", "/id/1/200/200.jpg", noCacheHeader, false},
+		{"/:width/:height", "/200/300", "/id/1/200/300.jpg", noCacheHeader, false},
+		{"/:size.jpg", "/200.jpg", "/id/1/200/200.jpg", noCacheHeader, false},
+		{"/:width/:height.jpg", "/200/300.jpg", "/id/1/200/300.jpg", noCacheHeader, false},
+		{"/:size.webp", "/200.webp", "/id/1/200/200.webp", noCacheHeader, false},
+		{"/:width/:height.webp", "/200/300.webp", "/id/1/200/300.webp", noCacheHeader, false},
+		{"/:size?grayscale", "/200?grayscale", "/id/1/200/200.jpg?grayscale", noCacheHeader, false},
+		{"/:width/:height?grayscale", "/200/300?grayscale", "/id/1/200/300.jpg?grayscale", noCacheHeader, false},
+		// JPG (cacheable - deterministic)
+		{"/id/:id/:width/:height", "/id/1/200/120", "/id/1/200/120.jpg", cacheableHeader, false},
+		{"/id/:id/:width/:height.jpg", "/id/1/200/120.jpg", "/id/1/200/120.jpg", cacheableHeader, false},
+		{"/id/:id/:width/:height?blur", "/id/1/200/200?blur", "/id/1/200/200.jpg?blur=5", cacheableHeader, false},
+		{"/id/:id/:width/:height.jpg?blur", "/id/1/200/200.jpg?blur", "/id/1/200/200.jpg?blur=5", cacheableHeader, false},
+		{"/id/:id/:width/:height?grayscale", "/id/1/200/200?grayscale", "/id/1/200/200.jpg?grayscale", cacheableHeader, false},
+		{"/id/:id/:width/:height.jpg?grayscale", "/id/1/200/200.jpg?grayscale", "/id/1/200/200.jpg?grayscale", cacheableHeader, false},
+		{"/id/:id/:width/:height?blur&grayscale", "/id/1/200/200?blur&grayscale", "/id/1/200/200.jpg?blur=5&grayscale", cacheableHeader, false},
+		{"/id/:id/:width/:height.jpg?blur&grayscale", "/id/1/200/200.jpg?blur&grayscale", "/id/1/200/200.jpg?blur=5&grayscale", cacheableHeader, false},
+		{"width/height larger then max allowed but same size as image", "/id/1/300/400", "/id/1/300/400.jpg", cacheableHeader, false},
+		{"width/height larger then max allowed but same size as image", "/id/1/300/400.jpg", "/id/1/300/400.jpg", cacheableHeader, false},
+		{"width/height of 0 returns original image width", "/id/1/0/0", "/id/1/300/400.jpg", cacheableHeader, false},
+		{"width/height of 0 returns original image width", "/id/1/0/0.jpg", "/id/1/300/400.jpg", cacheableHeader, false},
+		// WebP (cacheable - deterministic)
+		{"/id/:id/:width/:height.webp", "/id/1/200/120.webp", "/id/1/200/120.webp", cacheableHeader, false},
+		{"/id/:id/:width/:height.webp?blur", "/id/1/200/200.webp?blur", "/id/1/200/200.webp?blur=5", cacheableHeader, false},
+		{"/id/:id/:width/:height.webp?grayscale", "/id/1/200/200.webp?grayscale", "/id/1/200/200.webp?grayscale", cacheableHeader, false},
+		{"/id/:id/:width/:height.webp?blur&grayscale", "/id/1/200/200.webp?blur&grayscale", "/id/1/200/200.webp?blur=5&grayscale", cacheableHeader, false},
+		{"width/height larger then max allowed but same size as image", "/id/1/300/400.webp", "/id/1/300/400.webp", cacheableHeader, false},
+		{"width/height of 0 returns original image width", "/id/1/0/0.webp", "/id/1/300/400.webp", cacheableHeader, false},
 
-		// Default blur amount
-		{"/:size?blur", "/200?blur", "/id/1/200/200.jpg?blur=5", true, false},
-		{"/:width/:height?blur", "/200/300?blur", "/id/1/200/300.jpg?blur=5", true, false},
-		{"/:size?grayscale&blur", "/200?grayscale&blur", "/id/1/200/200.jpg?blur=5&grayscale", true, false},
-		{"/:width/:height?grayscale&blur", "/200/300?grayscale&blur", "/id/1/200/300.jpg?blur=5&grayscale", true, false},
+		// Default blur amount (random - not cacheable)
+		{"/:size?blur", "/200?blur", "/id/1/200/200.jpg?blur=5", noCacheHeader, false},
+		{"/:width/:height?blur", "/200/300?blur", "/id/1/200/300.jpg?blur=5", noCacheHeader, false},
+		{"/:size?grayscale&blur", "/200?grayscale&blur", "/id/1/200/200.jpg?blur=5&grayscale", noCacheHeader, false},
+		{"/:width/:height?grayscale&blur", "/200/300?grayscale&blur", "/id/1/200/300.jpg?blur=5&grayscale", noCacheHeader, false},
 
-		// Custom blur amount
-		{"/:size?blur=10", "/200?blur=10", "/id/1/200/200.jpg?blur=10", true, false},
-		{"/:width/:height?blur=10", "/200/300?blur=10", "/id/1/200/300.jpg?blur=10", true, false},
-		{"/:size?grayscale&blur=10", "/200?grayscale&blur=10", "/id/1/200/200.jpg?blur=10&grayscale", true, false},
-		{"/:width/:height?grayscale&blur=10", "/200/300?grayscale&blur=10", "/id/1/200/300.jpg?blur=10&grayscale", true, false},
+		// Custom blur amount (random - not cacheable)
+		{"/:size?blur=10", "/200?blur=10", "/id/1/200/200.jpg?blur=10", noCacheHeader, false},
+		{"/:width/:height?blur=10", "/200/300?blur=10", "/id/1/200/300.jpg?blur=10", noCacheHeader, false},
+		{"/:size?grayscale&blur=10", "/200?grayscale&blur=10", "/id/1/200/200.jpg?blur=10&grayscale", noCacheHeader, false},
+		{"/:width/:height?grayscale&blur=10", "/200/300?grayscale&blur=10", "/id/1/200/300.jpg?blur=10&grayscale", noCacheHeader, false},
 
-		// Deprecated routes
-		{"/g/:size", "/g/200", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/g/:width/:height", "/g/200/300", "/id/1/200/300.jpg?grayscale", true, false},
-		{"/g/:size.jpg", "/g/200.jpg", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/g/:width/:height.jpg", "/g/200/300.jpg", "/id/1/200/300.jpg?grayscale", true, false},
-		{"/g/:size.webp", "/g/200.webp", "/id/1/200/200.webp?grayscale", true, false},
-		{"/g/:width/:height.webp", "/g/200/300.webp", "/id/1/200/300.webp?grayscale", true, false},
-		{"/g/:size?blur", "/g/200?blur", "/id/1/200/200.jpg?blur=5&grayscale", true, false},
-		{"/g/:width/:height?blur", "/g/200/300?blur", "/id/1/200/300.jpg?blur=5&grayscale", true, false},
-		{"/g/:size?image=:id", "/g/200?image=1", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/g/:width/:height?image=:id", "/g/200/300?image=1", "/id/1/200/300.jpg?grayscale", true, false},
-		{"/g/:size.jpg?image=:id", "/g/200.jpg?image=1", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/g/:width/:height.jpg?image=:id", "/g/200/300.jpg?image=1", "/id/1/200/300.jpg?grayscale", true, false},
-		{"/g/:size.webp?image=:id", "/g/200.webp?image=1", "/id/1/200/200.webp?grayscale", true, false},
-		{"/g/:width/:height.webp?image=:id", "/g/200/300.webp?image=1", "/id/1/200/300.webp?grayscale", true, false},
+		// Deprecated routes (not cacheable)
+		{"/g/:size", "/g/200", "/id/1/200/200.jpg?grayscale", noCacheHeader, false},
+		{"/g/:width/:height", "/g/200/300", "/id/1/200/300.jpg?grayscale", noCacheHeader, false},
+		{"/g/:size.jpg", "/g/200.jpg", "/id/1/200/200.jpg?grayscale", noCacheHeader, false},
+		{"/g/:width/:height.jpg", "/g/200/300.jpg", "/id/1/200/300.jpg?grayscale", noCacheHeader, false},
+		{"/g/:size.webp", "/g/200.webp", "/id/1/200/200.webp?grayscale", noCacheHeader, false},
+		{"/g/:width/:height.webp", "/g/200/300.webp", "/id/1/200/300.webp?grayscale", noCacheHeader, false},
+		{"/g/:size?blur", "/g/200?blur", "/id/1/200/200.jpg?blur=5&grayscale", noCacheHeader, false},
+		{"/g/:width/:height?blur", "/g/200/300?blur", "/id/1/200/300.jpg?blur=5&grayscale", noCacheHeader, false},
+		{"/g/:size?image=:id", "/g/200?image=1", "/id/1/200/200.jpg?grayscale", noCacheHeader, false},
+		{"/g/:width/:height?image=:id", "/g/200/300?image=1", "/id/1/200/300.jpg?grayscale", noCacheHeader, false},
+		{"/g/:size.jpg?image=:id", "/g/200.jpg?image=1", "/id/1/200/200.jpg?grayscale", noCacheHeader, false},
+		{"/g/:width/:height.jpg?image=:id", "/g/200/300.jpg?image=1", "/id/1/200/300.jpg?grayscale", noCacheHeader, false},
+		{"/g/:size.webp?image=:id", "/g/200.webp?image=1", "/id/1/200/200.webp?grayscale", noCacheHeader, false},
+		{"/g/:width/:height.webp?image=:id", "/g/200/300.webp?image=1", "/id/1/200/300.webp?grayscale", noCacheHeader, false},
 
-		// Deprecated query params
-		{"/:size?image=:id", "/200?image=1", "/id/1/200/200.jpg", true, false},
-		{"/:width/:height?image=:id", "/200/300?image=1", "/id/1/200/300.jpg", true, false},
-		{"/:size?image=:id&grayscale", "/200?image=1&grayscale", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/:width/:height?image=:id&grayscale", "/200/300?image=1&grayscale", "/id/1/200/300.jpg?grayscale", true, false},
-		{"/:size?image=:id&blur", "/200?image=1&blur", "/id/1/200/200.jpg?blur=5", true, false},
-		{"/:width/:height?image=:id&blur", "/200/300?image=1&blur", "/id/1/200/300.jpg?blur=5", true, false},
-		{"/:size?image=:id&grayscale&blur", "/200?image=1&grayscale&blur", "/id/1/200/200.jpg?blur=5&grayscale", true, false},
-		{"/:width/:height?image=:id&grayscale&blur", "/200/300?image=1&grayscale&blur", "/id/1/200/300.jpg?blur=5&grayscale", true, false},
+		// Deprecated query params (not cacheable)
+		{"/:size?image=:id", "/200?image=1", "/id/1/200/200.jpg", noCacheHeader, false},
+		{"/:width/:height?image=:id", "/200/300?image=1", "/id/1/200/300.jpg", noCacheHeader, false},
+		{"/:size?image=:id&grayscale", "/200?image=1&grayscale", "/id/1/200/200.jpg?grayscale", noCacheHeader, false},
+		{"/:width/:height?image=:id&grayscale", "/200/300?image=1&grayscale", "/id/1/200/300.jpg?grayscale", noCacheHeader, false},
+		{"/:size?image=:id&blur", "/200?image=1&blur", "/id/1/200/200.jpg?blur=5", noCacheHeader, false},
+		{"/:width/:height?image=:id&blur", "/200/300?image=1&blur", "/id/1/200/300.jpg?blur=5", noCacheHeader, false},
+		{"/:size?image=:id&grayscale&blur", "/200?image=1&grayscale&blur", "/id/1/200/200.jpg?blur=5&grayscale", noCacheHeader, false},
+		{"/:width/:height?image=:id&grayscale&blur", "/200/300?image=1&grayscale&blur", "/id/1/200/300.jpg?blur=5&grayscale", noCacheHeader, false},
 
-		// By seed
-		{"/seed/:seed/:size", "/seed/1/200", "/id/1/200/200.jpg", true, false},
-		{"/seed/:seed/:size.jpg", "/seed/1/200.jpg", "/id/1/200/200.jpg", true, false},
-		{"/seed/:seed/:size.webp", "/seed/1/200.webp", "/id/1/200/200.webp", true, false},
-		{"/seed/:seed/:size?blur", "/seed/1/200?blur", "/id/1/200/200.jpg?blur=5", true, false},
-		{"/seed/:seed/:size?blur=10", "/seed/1/200?blur=10", "/id/1/200/200.jpg?blur=10", true, false},
-		{"/seed/:seed/:size?grayscale", "/seed/1/200?grayscale", "/id/1/200/200.jpg?grayscale", true, false},
-		{"/seed/:seed/:size?blur&grayscale", "/seed/1/200?blur&grayscale", "/id/1/200/200.jpg?blur=5&grayscale", true, false},
-		{"/seed/:seed/:size?blur=10&grayscale", "/seed/1/200?blur=10&grayscale", "/id/1/200/200.jpg?blur=10&grayscale", true, false},
-		{"/seed/:seed/:width/:height", "/seed/1/200/300", "/id/1/200/300.jpg", true, false},
-		{"/seed/:seed/:width/:height.jpg", "/seed/1/200/300.jpg", "/id/1/200/300.jpg", true, false},
-		{"/seed/:seed/:width/:height.webp", "/seed/1/200/300.webp", "/id/1/200/300.webp", true, false},
-		{"/seed/:seed/:width/:height?blur", "/seed/1/200/300?blur", "/id/1/200/300.jpg?blur=5", true, false},
-		{"/seed/:seed/:width/:height?blur=10", "/seed/1/200/300?blur=10", "/id/1/200/300.jpg?blur=10", true, false},
-		{"/seed/:seed/:width/:height?grayscale", "/seed/1/200/300?grayscale", "/id/1/200/300.jpg?grayscale", true, false},
-		{"/seed/:seed/:width/:height?blur&grayscale", "/seed/1/200/300?blur&grayscale", "/id/1/200/300.jpg?blur=5&grayscale", true, false},
-		{"/seed/:seed/:width/:height?blur=10&grayscale", "/seed/1/200/300?blur=10&grayscale", "/id/1/200/300.jpg?blur=10&grayscale", true, false},
+		// By seed (cacheable - deterministic)
+		{"/seed/:seed/:size", "/seed/1/200", "/id/1/200/200.jpg", cacheableHeader, false},
+		{"/seed/:seed/:size.jpg", "/seed/1/200.jpg", "/id/1/200/200.jpg", cacheableHeader, false},
+		{"/seed/:seed/:size.webp", "/seed/1/200.webp", "/id/1/200/200.webp", cacheableHeader, false},
+		{"/seed/:seed/:size?blur", "/seed/1/200?blur", "/id/1/200/200.jpg?blur=5", cacheableHeader, false},
+		{"/seed/:seed/:size?blur=10", "/seed/1/200?blur=10", "/id/1/200/200.jpg?blur=10", cacheableHeader, false},
+		{"/seed/:seed/:size?grayscale", "/seed/1/200?grayscale", "/id/1/200/200.jpg?grayscale", cacheableHeader, false},
+		{"/seed/:seed/:size?blur&grayscale", "/seed/1/200?blur&grayscale", "/id/1/200/200.jpg?blur=5&grayscale", cacheableHeader, false},
+		{"/seed/:seed/:size?blur=10&grayscale", "/seed/1/200?blur=10&grayscale", "/id/1/200/200.jpg?blur=10&grayscale", cacheableHeader, false},
+		{"/seed/:seed/:width/:height", "/seed/1/200/300", "/id/1/200/300.jpg", cacheableHeader, false},
+		{"/seed/:seed/:width/:height.jpg", "/seed/1/200/300.jpg", "/id/1/200/300.jpg", cacheableHeader, false},
+		{"/seed/:seed/:width/:height.webp", "/seed/1/200/300.webp", "/id/1/200/300.webp", cacheableHeader, false},
+		{"/seed/:seed/:width/:height?blur", "/seed/1/200/300?blur", "/id/1/200/300.jpg?blur=5", cacheableHeader, false},
+		{"/seed/:seed/:width/:height?blur=10", "/seed/1/200/300?blur=10", "/id/1/200/300.jpg?blur=10", cacheableHeader, false},
+		{"/seed/:seed/:width/:height?grayscale", "/seed/1/200/300?grayscale", "/id/1/200/300.jpg?grayscale", cacheableHeader, false},
+		{"/seed/:seed/:width/:height?blur&grayscale", "/seed/1/200/300?blur&grayscale", "/id/1/200/300.jpg?blur=5&grayscale", cacheableHeader, false},
+		{"/seed/:seed/:width/:height?blur=10&grayscale", "/seed/1/200/300?blur=10&grayscale", "/id/1/200/300.jpg?blur=10&grayscale", cacheableHeader, false},
 
 		// Trailing slashes
-		{"/:size/", "/200/", "/200", false, true},
-		{"/:width/:height/", "/200/300/", "/200/300", false, true},
-		{"/id/:id/:size/", "/id/1/200/", "/id/1/200", false, true},
-		{"/id/:id/:width/:height/", "/id/1/200/120/", "/id/1/200/120", false, true},
-		{"/seed/:seed/:size/", "/seed/1/200/", "/seed/1/200", false, true},
-		{"/seed/:seed/:width/:height/", "/seed/1/200/120/", "/seed/1/200/120", false, true},
+		{"/:size/", "/200/", "/200", "", true},
+		{"/:width/:height/", "/200/300/", "/200/300", "", true},
+		{"/id/:id/:size/", "/id/1/200/", "/id/1/200", "", true},
+		{"/id/:id/:width/:height/", "/id/1/200/120/", "/id/1/200/120", "", true},
+		{"/seed/:seed/:size/", "/seed/1/200/", "/seed/1/200", "", true},
+		{"/seed/:seed/:width/:height/", "/seed/1/200/120/", "/seed/1/200/120", "", true},
 	}
 
 	for _, test := range redirectTests {
@@ -446,9 +449,9 @@ func TestAPI(t *testing.T) {
 			t.Errorf("%s: wrong redirect %s, expected %s", test.Name, location, expectedURL)
 		}
 
-		if test.TestCacheHeader {
-			if cacheControl := w.Header().Get("Cache-Control"); cacheControl != "private, no-cache, no-store, must-revalidate" {
-				t.Errorf("%s: wrong cache header, %#v", test.Name, cacheControl)
+		if test.ExpectedCacheHeader != "" {
+			if cacheControl := w.Header().Get("Cache-Control"); cacheControl != test.ExpectedCacheHeader {
+				t.Errorf("%s: wrong cache header, got %#v, expected %#v", test.Name, cacheControl, test.ExpectedCacheHeader)
 			}
 		}
 	}
