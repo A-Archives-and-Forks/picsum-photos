@@ -82,9 +82,10 @@ func taskProcessor(cache *image.Cache, tracer *tracing.Tracer) func(ctx context.
 		}
 
 		// Use a pre-processed source image closer to the desired size then the original
+		// We use 2x the requested size to maintain quality when downscaling
 		imageKey := task.ImageID
-		width := math.Ceil(float64(task.Width)/500) * 500
-		height := math.Ceil(float64(task.Height)/500) * 500
+		width := math.Ceil(float64(task.Width*2)/500) * 500
+		height := math.Ceil(float64(task.Height*2)/500) * 500
 		size := math.Max(width, height)
 		if size <= 4500 { // Files larger then 4500 doesn't have a suffix
 			imageKey = fmt.Sprintf("%s_%0.f", task.ImageID, size)
