@@ -6,7 +6,7 @@ import (
 
 // Http timeouts
 const (
-	ReadTimeout    = 5 * time.Second
-	WriteTimeout   = time.Minute
+	ReadTimeout    = 30 * time.Second
+	WriteTimeout   = 90 * time.Second
 	HandlerTimeout = 45 * time.Second
 )
