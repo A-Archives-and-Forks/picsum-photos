@@ -190,7 +190,11 @@
 
               services.nginx.virtualHosts."${cfg.picsum-photos.domain}" = {
                 locations."/" = {
-                  proxyPass = "http://unix:${cfg.picsum-photos.sockPath}";
+                  proxyPass = "http://picsum_photos";
+                  extraConfig = ''
+                    proxy_http_version 1.1;
+                    proxy_set_header Connection "";
+                  '';
                 };
               };
             })
@@ -232,9 +236,34 @@
 
               services.nginx.virtualHosts."${cfg.image-service.domain}" = {
                 locations."/" = {
-                  proxyPass = "http://unix:${cfg.image-service.sockPath}";
+                  proxyPass = http://image_service;
+                  extraConfig = ''
+                    proxy_http_version 1.1;
+                    proxy_set_header Connection "";
+                  '';
                 };
               };
+            })
+
+            (mkIf (cfg.picsum-photos.enable || cfg.image-service.enable) {
+              services.nginx.appendHttpConfig = mkBefore ''
+                ${optionalString cfg.picsum-photos.enable ''
+                  upstream picsum_photos {
+                    server unix:${cfg.picsum-photos.sockPath};
+                    keepalive 256;
+                    keepalive_requests 1000;
+                    keepalive_timeout 60s;
+                  }
+                ''}
+                ${optionalString cfg.image-service.enable ''
+                  upstream image_service {
+                    server unix:${cfg.image-service.sockPath};
+                    keepalive 256;
+                    keepalive_requests 1000;
+                    keepalive_timeout 60s;
+                  }
+                ''}
+              '';
             })
           ]);
         };
