@@ -59,8 +59,8 @@ func Initialize(logger *logger.Logger) error {
 		C.vips_cache_set_max_mem(0)
 		C.vips_cache_set_max(0)
 
-		// Disable SIMD vector instructions due to g_object_unref segfault
-		C.vips_vector_set_enabled(C.int(0))
+		// // Disable SIMD vector instructions due to g_object_unref segfault
+		// C.vips_vector_set_enabled(C.int(0))
 	})
 
 	return err
