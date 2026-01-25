@@ -2,7 +2,7 @@
   description = "picsum.photos";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -14,6 +14,7 @@
   }:
     flake-utils.lib.eachSystem [
       "x86_64-linux"
+      "x86_64-darwin"
       "aarch64-linux"
       "aarch64-darwin"
     ] (system:
@@ -29,7 +30,7 @@
             ];
           };
 
-          picsum-photos = pkgs.buildGo122Module {
+          picsum-photos = pkgs.buildGo125Module {
             name = "picsum-photos";
             src = ./.;
             CGO_ENABLED = 0;
@@ -44,7 +45,7 @@
             '';
           };
 
-          image-service = pkgs.buildGo122Module {
+          image-service = pkgs.buildGo125Module {
             name = "image-service";
             src = ./.;
             subPackages = ["cmd/image-service"];
@@ -61,7 +62,7 @@
 
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            go_1_22
+            go_1_25
             gotools
             go-tools
             gopls
