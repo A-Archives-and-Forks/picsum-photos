@@ -1,6 +1,7 @@
 package imageapi
 
 import (
+	"expvar"
 	"net/http"
 	"sync"
 	"time"
@@ -18,7 +19,7 @@ import (
 
 const (
 	imageCacheTTL      = 5 * time.Minute
-	imageCacheCapacity = 5000
+	imageCacheCapacity = 75_000
 )
 
 // API is a http api
@@ -34,13 +35,20 @@ type API struct {
 
 // NewAPI creates a new API instance with initialized caches
 func NewAPI(imageProcessor image.Processor, log *logger.Logger, tracer *tracing.Tracer, handlerTimeout time.Duration, hmac *hmac.HMAC) *API {
+	cache := expirable.NewLRU[string, []byte](imageCacheCapacity, nil, imageCacheTTL)
+
+	// Publish cache size gauge metric
+	expvar.Publish("gauge_imageapi_cache_size", expvar.Func(func() any {
+		return cache.Len()
+	}))
+
 	return &API{
 		ImageProcessor: imageProcessor,
 		Log:            log,
 		Tracer:         tracer,
 		HandlerTimeout: handlerTimeout,
 		HMAC:           hmac,
-		imageCache:     expirable.NewLRU[string, []byte](imageCacheCapacity, nil, imageCacheTTL),
+		imageCache:     cache,
 	}
 }
 
