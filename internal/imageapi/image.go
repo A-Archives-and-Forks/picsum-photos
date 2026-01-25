@@ -1,6 +1,7 @@
 package imageapi
 
 import (
+	"errors"
 	"expvar"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"github.com/DMarby/picsum-photos/internal/handler"
 	"github.com/DMarby/picsum-photos/internal/image"
 	"github.com/DMarby/picsum-photos/internal/params"
+	"github.com/DMarby/picsum-photos/internal/queue"
 	"github.com/gorilla/mux"
 )
 
@@ -101,6 +103,9 @@ func (a *API) imageHandler(w http.ResponseWriter, r *http.Request) *handler.Erro
 	}
 
 	if err != nil {
+		if errors.Is(err, queue.ErrQueueFull) {
+			return handler.ServiceUnavailable()
+		}
 		a.logError(r, "error processing image", err)
 		return handler.InternalServerError()
 	}

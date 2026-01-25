@@ -27,6 +27,14 @@ func BadRequest(message string) *Error {
 	}
 }
 
+// ServiceUnavailable is a convenience function for returning a service unavailable error
+func ServiceUnavailable() *Error {
+	return &Error{
+		Message: "Service temporarily unavailable",
+		Code:    http.StatusServiceUnavailable,
+	}
+}
+
 const jsonMediaType = "application/json"
 
 // Handler wraps a http handler and deals with responding to errors
