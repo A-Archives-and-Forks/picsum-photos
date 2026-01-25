@@ -101,15 +101,9 @@ func main() {
 	go checker.Run()
 
 	// Start and listen on http
-	api := &api.API{
-		ImageProcessor: imageProcessor,
-		Log:            log,
-		Tracer:         tracer,
-		HandlerTimeout: cmd.HandlerTimeout,
-		HMAC: &hmac.HMAC{
-			Key: []byte(*hmacKey),
-		},
-	}
+	api := api.NewAPI(imageProcessor, log, tracer, cmd.HandlerTimeout, &hmac.HMAC{
+		Key: []byte(*hmacKey),
+	})
 	server := &http.Server{
 		Handler:      api.Router(),
 		ReadTimeout:  cmd.ReadTimeout,
