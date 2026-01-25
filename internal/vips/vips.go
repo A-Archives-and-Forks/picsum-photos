@@ -2,6 +2,7 @@ package vips
 
 /*
 #cgo pkg-config: vips
+#include <stdlib.h>
 #include "vips-bridge.h"
 */
 import "C"
@@ -19,8 +20,9 @@ import (
 type Image *C.VipsImage
 
 var (
-	once sync.Once
-	log  *logger.Logger
+	once     sync.Once
+	log      *logger.Logger
+	errMutex sync.Mutex
 )
 
 // Initialize libvips if it's not already started
@@ -34,9 +36,13 @@ func Initialize(logger *logger.Logger) error {
 
 		if C.VIPS_MAJOR_VERSION != 8 || C.VIPS_MINOR_VERSION < 6 {
 			err = fmt.Errorf("unsupported libvips version")
+			return
 		}
 
-		errorCode := C.vips_init(C.CString("picsum-photos"))
+		cName := C.CString("picsum-photos")
+		defer C.free(unsafe.Pointer(cName))
+
+		errorCode := C.vips_init(cName)
 		if errorCode != 0 {
 			err = fmt.Errorf("unable to initialize vips: %v", catchVipsError())
 			return
@@ -79,6 +85,8 @@ func PrintDebugInfo() {
 
 // catchVipsError returns the vips error buffer as an error
 func catchVipsError() error {
+	errMutex.Lock()
+	defer errMutex.Unlock()
 	defer C.vips_error_clear()
 
 	s := C.GoString(C.vips_error_buffer())
@@ -115,9 +123,9 @@ func SaveToJpegBuffer(image Image) ([]byte, error) {
 	var bufferPointer unsafe.Pointer
 	bufferLength := C.size_t(0)
 
-	err := C.save_image_to_jpeg_buffer(image, &bufferPointer, &bufferLength)
+	errCode := C.save_image_to_jpeg_buffer(image, &bufferPointer, &bufferLength)
 
-	if err != 0 {
+	if errCode != 0 {
 		return nil, fmt.Errorf("error saving to jpeg buffer %s", catchVipsError())
 	}
 
@@ -135,9 +143,9 @@ func SaveToWebPBuffer(image Image) ([]byte, error) {
 	var bufferPointer unsafe.Pointer
 	bufferLength := C.size_t(0)
 
-	err := C.save_image_to_webp_buffer(image, &bufferPointer, &bufferLength)
+	errCode := C.save_image_to_webp_buffer(image, &bufferPointer, &bufferLength)
 
-	if err != 0 {
+	if errCode != 0 {
 		return nil, fmt.Errorf("error saving to webp buffer %s", catchVipsError())
 	}
 
@@ -154,9 +162,9 @@ func Grayscale(image Image) (Image, error) {
 
 	var result *C.VipsImage
 
-	err := C.change_colorspace(image, &result, C.VIPS_INTERPRETATION_B_W)
+	errCode := C.change_colorspace(image, &result, C.VIPS_INTERPRETATION_B_W)
 
-	if err != 0 {
+	if errCode != 0 {
 		return nil, fmt.Errorf("error changing image colorspace %s", catchVipsError())
 	}
 
@@ -169,9 +177,9 @@ func Blur(image Image, blur int) (Image, error) {
 
 	var result *C.VipsImage
 
-	err := C.blur_image(image, &result, C.double(blur))
+	errCode := C.blur_image(image, &result, C.double(blur))
 
-	if err != 0 {
+	if errCode != 0 {
 		return nil, fmt.Errorf("error applying blur to image %s", catchVipsError())
 	}
 
@@ -180,12 +188,16 @@ func Blur(image Image, blur int) (Image, error) {
 
 // SetUserComment sets the UserComment field in the exif metadata for an image
 func SetUserComment(image Image, comment string) {
-	C.set_user_comment(image, C.CString(comment))
+	cComment := C.CString(comment)
+	defer C.free(unsafe.Pointer(cComment))
+	C.set_user_comment(image, cComment)
 }
 
 // UnrefImage unrefs an image object
 func UnrefImage(image Image) {
-	C.g_object_unref(C.gpointer(image))
+	if image != nil {
+		C.g_object_unref(C.gpointer(image))
+	}
 }
 
 // NewEmptyImage returns an empty image object

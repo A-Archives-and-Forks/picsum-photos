@@ -9,10 +9,20 @@ void log_handler(char const* log_domain, GLogLevelFlags log_level, char const* m
 }
 
 int save_image_to_jpeg_buffer(VipsImage *image, void **buf, size_t *len) {
+  // Guard against empty/partial images without data (segfaults in libvips 8.18+)
+  if (image == NULL || (image->dtype == VIPS_IMAGE_PARTIAL && image->generate_fn == NULL)) {
+    vips_error("jpegsave_buffer", "vips_image_pio_input: no image data\n");
+    return -1;
+  }
   return vips_jpegsave_buffer(image, buf, len, "interlace", TRUE, "optimize_coding", TRUE, NULL);
 }
 
 int save_image_to_webp_buffer(VipsImage *image, void **buf, size_t *len) {
+  // Guard against empty/partial images without data (segfaults in libvips 8.18+)
+  if (image == NULL || (image->dtype == VIPS_IMAGE_PARTIAL && image->generate_fn == NULL)) {
+    vips_error("webpsave_buffer", "vips_image_pio_input: no image data\n");
+    return -1;
+  }
   return vips_webpsave_buffer(image, buf, len, NULL);
 }
 
@@ -21,10 +31,20 @@ int resize_image(void *buf, size_t len, VipsImage **out, int width, int height, 
 }
 
 int change_colorspace(VipsImage *in, VipsImage **out, VipsInterpretation colorspace) {
+  // Guard against empty/partial images without data (segfaults in libvips 8.18+)
+  if (in == NULL || (in->dtype == VIPS_IMAGE_PARTIAL && in->generate_fn == NULL)) {
+    vips_error("vips_image_pio_input", "no image data");
+    return -1;
+  }
   return vips_call("colourspace", in, out, colorspace, NULL);
 }
 
 int blur_image(VipsImage *in, VipsImage **out, double blur) {
+  // Guard against empty/partial images without data (segfaults in libvips 8.18+)
+  if (in == NULL || (in->dtype == VIPS_IMAGE_PARTIAL && in->generate_fn == NULL)) {
+    vips_error("vips_image_pio_input", "no image data");
+    return -1;
+  }
   return vips_call("gaussblur", in, out, blur, NULL);
 }
 
