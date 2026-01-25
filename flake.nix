@@ -33,7 +33,7 @@
           picsum-photos = pkgs.buildGo125Module {
             name = "picsum-photos";
             src = ./.;
-            CGO_ENABLED = 0;
+            env.CGO_ENABLED = "0";
             subPackages = ["cmd/picsum-photos"];
             doCheck = false; # Prevent make test from being ran
             vendorHash = (pkgs.lib.fileContents ./go.mod.sri);
