@@ -59,8 +59,6 @@ func (p *Processor) ProcessImage(ctx context.Context, task *image.Task) (process
 	queueSize.Add(1)
 	defer queueSize.Add(-1)
 
-	defer processedImages.Add(fmt.Sprintf("%0.f", math.Max(math.Round(float64(task.Width)/500)*500, math.Round(float64(task.Height)/500)*500)), 1)
-
 	result, err := p.queue.Process(ctx, task)
 	if err != nil {
 		return nil, err
@@ -70,6 +68,8 @@ func (p *Processor) ProcessImage(ctx context.Context, task *image.Task) (process
 	if !ok {
 		return nil, fmt.Errorf("error getting result")
 	}
+
+	processedImages.Add(fmt.Sprintf("%0.f", math.Max(math.Round(float64(task.Width)/500)*500, math.Round(float64(task.Height)/500)*500)), 1)
 
 	return image, nil
 }
